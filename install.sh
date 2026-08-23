@@ -27,7 +27,9 @@ description: >
   $3" "$2"
 	fi
 	if command -v codex >/dev/null 2>&1; then
-		emit "${CODEX_HOME:-$HOME/.codex}/prompts/$1.md" "description: $3" "$2"
+		emit "${CODEX_HOME:-$HOME/.codex}/skills/$1/SKILL.md" "name: $1
+description: >
+  $3" "$2"
 	fi
 	if command -v opencode >/dev/null 2>&1; then
 		emit "${XDG_CONFIG_HOME:-$HOME/.config}/opencode/command/$1.md" "description: $3" "$2"
