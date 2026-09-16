@@ -6,7 +6,15 @@ Named: `/visual`. Otherwise loads on its own while writing or revising anything
 explanatory — a spec, a proposal, a design note, a plan, a README, learning
 notes, or any page working out how something fits together. Any subject.
 
-Off for the session: "no diagrams".
+A mode of conversation, not a one-shot. Once on it stays on, and the switches
+are always in force:
+
+- On for the session: `/visual`, or "diagrams on".
+- Off for the session: "no diagrams".
+- On until "visual never": "visual always" — run
+  `touch ~/.config/opencode/.visual-always`. The file is the switch; every new
+  session starts with the mode on while it exists.
+- Off until `/visual`: "visual never" — remove that file.
 
 The job: an otherwise text-only document gets the one figure that carries what
 the prose cannot. Not decoration. Load-bearing.
