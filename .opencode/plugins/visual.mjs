@@ -1,6 +1,7 @@
-// visual — OpenCode plugin.
+// visual — OpenCode plugin (OpenCode 2 plugin API).
 //
-// The skill in ~/.opencode/skills/visual/SKILL.md is the single source of truth;
+// The skill (installed into ~/.agents/skills/visual by install.sh, with a
+// legacy fallback to ~/.opencode/skills/visual) is the single source of truth;
 // this file only carries the always-on mechanism, the OpenCode equivalent of a
 // SessionStart hook.
 //
@@ -12,12 +13,23 @@
 // Opt in to always-on:   say "visual always" (the agent touches the flag file),
 //                        or: touch ~/.config/opencode/.visual-always
 // Opt back out:          say "visual never", or: rm ~/.config/opencode/.visual-always
+//
+// Ported from the v1 plugin API to the v2 API, verified against OpenCode
+// 2.0.11: experimental.chat.system.transform → ctx.session.hook("context"),
+// pushing a { type: "text" } block. This file is a patched copy; the pristine
+// upstream version lives in vendor/upstream/visual, and the port as a patch
+// series in vendor/patches/visual.
 
 import fs from 'fs';
 import os from 'os';
 import path from 'path';
 
-const skillPath = path.join(os.homedir(), '.opencode', 'skills', 'visual', 'SKILL.md');
+// install.sh shares plain skills into ~/.agents/skills (codex + opencode);
+// ~/.opencode/skills/visual is the legacy location, kept as a fallback.
+const skillCandidates = [
+  path.join(process.env.HOME || os.homedir(), '.agents', 'skills', 'visual', 'SKILL.md'),
+  path.join(os.homedir(), '.opencode', 'skills', 'visual', 'SKILL.md'),
+];
 
 const flagPath = path.join(
 	process.env.XDG_CONFIG_HOME || path.join(os.homedir(), '.config'),
@@ -27,15 +39,24 @@ const flagPath = path.join(
 
 // Read SKILL.md and strip a leading YAML frontmatter block (--- ... ---).
 function body() {
-	return fs
-		.readFileSync(skillPath, 'utf8')
-		.replace(/^---[^\S\r\n]*\r?\n[\s\S]*?\r?\n---[^\S\r\n]*(?:\r?\n|$)/, '')
-		.replace(/(?:\r?\n)+$/, '');
+	for (const p of skillCandidates) {
+		try {
+			return fs
+				.readFileSync(p, 'utf8')
+				.replace(/^---[^\S\r\n]*\r?\n[\s\S]*?\r?\n---[^\S\r\n]*(?:\r?\n|$)/, '')
+				.replace(/(?:\r?\n)+$/, '');
+		} catch (e) {
+			// Try the next candidate.
+		}
+	}
+	throw new Error('no visual SKILL.md found');
 }
 
-export default async () => {
-	return {
-		'experimental.chat.system.transform': async (_input, output) => {
+export default {
+	id: 'visual',
+
+	async setup(ctx) {
+		await ctx.session.hook('context', (event) => {
 			let on = false;
 			try { on = fs.existsSync(flagPath); } catch (e) {}
 			if (!on) return;
@@ -49,11 +70,8 @@ export default async () => {
 				'off for the session; delete ' + flagPath + ' to turn always-on off for good.';
 			const injected = header + '\n\n' + text;
 
-			if (output.system.length > 0) {
-				output.system[output.system.length - 1] += '\n\n' + injected;
-			} else {
-				output.system.push(injected);
-			}
-		},
-	};
+			if (!event || !Array.isArray(event.system)) return;
+			event.system.push({ type: 'text', text: injected });
+		});
+	},
 };
